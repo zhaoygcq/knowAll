@@ -3,20 +3,21 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "devDependencies": {
-    "@wechatferry/agent": "^0.0.20",
+  "devDependencies": {},
+  "dependencies": {
+    "file-box": "^1.4.15",
+    "node-lame": "^1.3.2",
+    "qrcode-terminal": "^0.12.0",
+    "wechaty": "^1.20.2",
     "crypto-js": "^3.1.9-1",
     "log4node": "^0.1.6",
     "ws": "^7.1.2"
-  },
-  "dependencies": {
-    "file-box": "^1.4.15",
-    "node-lame": "^1.3.2"
   }
 }

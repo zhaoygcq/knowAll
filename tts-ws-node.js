@@ -10,11 +10,11 @@
  * https://www.xfyun.cn/document/error-code （code返回错误码时必看）
  *
  */
-const CryptoJS = require("crypto-js");
-const WebSocket = require("ws");
-var log = require("log4node");
-var fs = require("fs/promises");
-const child_process = require("child_process");
+import CryptoJS from "crypto-js";
+import WebSocket from "ws";
+import fs from "fs/promises";
+import child_process from "child_process";
+import log from "log4node";
 
 // 系统配置
 const config = {
@@ -35,9 +35,8 @@ let frame = "";
 let promise = null;
 let resolvePromise = null;
 
-
 const initHandler = () => {
-  if(!ws) return;
+  if (!ws) return;
   // 连接建立完毕，读取数据进行识别
   ws.on("open", async () => {
     log.info("websocket connect!");
@@ -48,7 +47,7 @@ const initHandler = () => {
       await fs.unlink("./test.mp3");
       await fs.unlink("./test.pcm");
     } catch {}
-    if(frame) {
+    if (frame) {
       ws.send(frame);
     }
   });
@@ -92,7 +91,6 @@ const initHandler = () => {
   });
 };
 
-
 const createWs = () => {
   // 获取当前时间 RFC1123格式
   let date = new Date().toUTCString();
@@ -125,9 +123,14 @@ function getAuthStr(date) {
   return authStr;
 }
 
+// 保存文件
+function save(data) {
+  return fs.writeFile("./test.pcm", data, { flag: "a" });
+}
+
 // 传输数据
-function send(text) {
-  createWs()
+export function send(text) {
+  createWs();
   let currFrame = {
     // 填充common
     common: {
@@ -151,16 +154,7 @@ function send(text) {
   frame = JSON.stringify(currFrame);
   promise = new Promise((resolve) => {
     resolvePromise = resolve;
-  })
+  });
 
   return promise;
 }
-
-// 保存文件
-function save(data) {
-  return fs.writeFile("./test.pcm", data, { flag: "a" });
-}
-
-module.exports = {
-  send: send,
-};
