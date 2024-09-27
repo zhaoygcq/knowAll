@@ -37,7 +37,9 @@ const handleMsg = async (msg) => {
   return null;
 };
 
-const bot = WechatyBuilder.build();
+const bot = WechatyBuilder.build({
+  name: MY_NAME,
+});
 
 bot
   .on("scan", onScan)
