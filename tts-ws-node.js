@@ -29,72 +29,89 @@ const config = {
   apiKey: "b53e51baff3102b34c278efdc65e6548",
   uri: "/v2/tts",
 };
-// 获取当前时间 RFC1123格式
-let date = new Date().toUTCString();
-// 设置当前临时状态为初始化
 
-let wssUrl =
-  config.hostUrl +
-  "?authorization=" +
-  getAuthStr(date) +
-  "&date=" +
-  date +
-  "&host=" +
-  config.host;
-let ws = new WebSocket(wssUrl, {
-  
-});
+let ws = null;
+let frame = "";
+let promise = null;
+let resolvePromise = null;
 
-// 连接建立完毕，读取数据进行识别
-ws.on("open", async () => {
-  log.info("websocket connect!");
-  try {
-    // 如果之前保存过音频文件，删除之
-    await fs.access("./test.pcm");
-    fs.unlink("./test.pcm", (err) => {
-      if (err) {
-        log.error("remove error: " + err);
-      }
-    });
-  } catch {}
-});
 
-// 得到结果后进行处理，仅供参考，具体业务具体对待
-ws.on("message", async (data, err) => {
-  if (err) {
-    log.error("message error: " + err);
-    return;
-  }
+const initHandler = () => {
+  if(!ws) return;
+  // 连接建立完毕，读取数据进行识别
+  ws.on("open", async () => {
+    log.info("websocket connect!");
+    try {
+      // 如果之前保存过音频文件，删除之
+      await fs.access("./test.mp3");
+      await fs.access("./test.pcm");
+      await fs.unlink("./test.mp3");
+      await fs.unlink("./test.pcm");
+    } catch {}
+    if(frame) {
+      ws.send(frame);
+    }
+  });
 
-  let res = JSON.parse(data);
+  // 得到结果后进行处理，仅供参考，具体业务具体对待
+  ws.on("message", async (data, err) => {
+    if (err) {
+      log.error("message error: " + err);
+      return;
+    }
 
-  if (res.code != 0) {
-    log.error(`${res.code}: ${res.message}`);
-    return;
-  }
+    let res = JSON.parse(data);
 
-  let audio = res.data.audio;
-  let audioBuf = Buffer.from(audio, "base64");
+    if (res.code != 0) {
+      log.error(`${res.code}: ${res.message}`);
+      return;
+    }
 
-  await save(audioBuf);
+    let audio = res.data.audio;
+    let audioBuf = Buffer.from(audio, "base64");
 
-  if (res.code == 0 && res.data.status == 2) {
-    console.log("语音合成成功");
-    child_process.execSync(
-      "ffmpeg -y -f s16le -ac 1 -ar 16000 -acodec pcm_s16le -i test.pcm test.mp3"
-    );
-  }
-});
+    await save(audioBuf);
 
-// 资源释放
-ws.on("close", (e) => {
-  log.info("connect close!", e);
-});
+    if (res.code == 0 && res.data.status == 2) {
+      console.log("语音合成成功");
+      child_process.execSync(
+        "ffmpeg -y -f s16le -ac 1 -ar 16000 -acodec pcm_s16le -i test.pcm test.mp3"
+      );
+      resolvePromise(true);
+    }
+  });
 
-// 连接错误
-ws.on("error", (err) => {
-  log.error("websocket connect err: " + err);
-});
+  // 资源释放
+  ws.on("close", (e) => {
+    log.info("connect close!", e);
+  });
+
+  // 连接错误
+  ws.on("error", (err) => {
+    log.error("websocket connect err: " + err);
+  });
+};
+
+
+const createWs = () => {
+  // 获取当前时间 RFC1123格式
+  let date = new Date().toUTCString();
+  // 设置当前临时状态为初始化
+
+  let wssUrl =
+    config.hostUrl +
+    "?authorization=" +
+    getAuthStr(date) +
+    "&date=" +
+    date +
+    "&host=" +
+    config.host;
+
+  ws = new WebSocket(wssUrl);
+  initHandler();
+};
+
+createWs();
 
 // 鉴权签名
 function getAuthStr(date) {
@@ -110,7 +127,8 @@ function getAuthStr(date) {
 
 // 传输数据
 function send(text) {
-  let frame = {
+  createWs()
+  let currFrame = {
     // 填充common
     common: {
       app_id: config.appid,
@@ -120,6 +138,7 @@ function send(text) {
       aue: "raw",
       auf: "audio/L16;rate=16000",
       vcn: "x2_xiaorong",
+      // vcn: "aisjiuxu",
       tte: "UTF8",
     },
     // 填充data
@@ -128,8 +147,13 @@ function send(text) {
       status: 2,
     },
   };
-  
-  ws.send(JSON.stringify(frame));
+
+  frame = JSON.stringify(currFrame);
+  promise = new Promise((resolve) => {
+    resolvePromise = resolve;
+  })
+
+  return promise;
 }
 
 // 保存文件
